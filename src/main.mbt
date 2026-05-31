@@ -71,8 +71,16 @@ fn color(h : Int, s : Int, l : Int) -> @css.CssColor {
 fn compact_json(value : Json?) -> String {
   match value {
     None => "missing"
-    Some(Json::Object(entries)) => "object(\{entries.length()})"
-    Some(Json::Array(items)) => "array(\{items.length()})"
+    Some(Json::Object(entries)) => if entries.length() == 0 {
+      "{ }"
+    } else {
+      "{ \{entries.length()} }"
+    }
+    Some(Json::Array(items)) => if items.length() == 0 {
+      "[ ]"
+    } else {
+      "[ \{items.length()} ]"
+    }
     Some(Json::String(text)) => "\"\{text}\""
     Some(Json::Number(number, repr~)) => repr.unwrap_or(number.to_string())
     Some(Json::True) => "true"
@@ -411,39 +419,18 @@ fn render_value_summary(
 ) -> @respo_node.RespoNode[ActionOp, GlobalEvent] {
   match status {
     Unchanged =>
-      inline_value_box(compact_json(right), color(0, 0, 96), color(0, 0, 28))
+      span(
+        style=respo_style(
+          font_family="Menlo, Monaco, monospace",
+          font_size=11,
+          color=color(0, 0, 48),
+        ),
+        [text_node(compact_json(right))],
+      )
     Added =>
-      div(
-        style=respo_style(
-          display=display_flex,
-          flex_direction=direction_row,
-          align_items=align_center,
-          gap=px(6),
-        ),
-        [
-          span(
-            style=respo_style(font_size=10, font_weight="700", color=color(120, 60, 28)),
-            [text_node("ADDED")],
-          ),
-          inline_value_box(compact_json(right), color(120, 65, 92), color(120, 70, 22)),
-        ],
-      )
+      inline_value_box(compact_json(right), color(130, 62, 88), color(130, 65, 18))
     Removed =>
-      div(
-        style=respo_style(
-          display=display_flex,
-          flex_direction=direction_row,
-          align_items=align_center,
-          gap=px(6),
-        ),
-        [
-          span(
-            style=respo_style(font_size=10, font_weight="700", color=color(2, 70, 32)),
-            [text_node("REMOVED")],
-          ),
-          inline_value_box(compact_json(left), color(4, 88, 92), color(2, 72, 24)),
-        ],
-      )
+      inline_value_box(compact_json(left), color(355, 88, 90), color(355, 82, 22))
     Changed =>
       div(
         style=respo_style(
@@ -453,12 +440,12 @@ fn render_value_summary(
           gap=px(6),
         ),
         [
-          inline_value_box(compact_json(left), color(28, 95, 92), color(28, 80, 24)),
+          inline_value_box(compact_json(left), color(355, 88, 90), color(355, 82, 22)),
           span(
-            style=respo_style(font_size=11, font_weight="700", color=color(0, 0, 45)),
-            [text_node("->")],
+            style=respo_style(font_size=12, font_weight="600", color=color(0, 0, 52)),
+            [text_node("→")],
           ),
-          inline_value_box(compact_json(right), color(176, 70, 91), color(176, 70, 24)),
+          inline_value_box(compact_json(right), color(130, 62, 88), color(130, 65, 18)),
         ],
       )
   }
@@ -489,16 +476,26 @@ fn render_node(
   let (chip_text, chip_style) = status_chip(status)
   // Only color the row for direct changes; containers that merely contain changes stay white
   let row_background = if status == Added {
-    color(120, 55, 96)
+    color(130, 45, 96)
   } else if status == Removed {
-    color(4, 80, 96)
+    color(355, 70, 96)
   } else if has_exact_change {
-    color(44, 90, 96)
+    color(44, 85, 96)
   } else {
     color(0, 0, 100)
   }
   // Containers whose changes are only in descendants: mute label, hide chip/badge
   let is_muted_container = container_inside_change && !has_exact_change
+  // Bracket indicator for container rows
+  let bracket_char : String? = if can_expand {
+    match (left, right) {
+      (Some(Json::Object(_)), _) | (_, Some(Json::Object(_))) => Some("{")
+      (Some(Json::Array(_)), _) | (_, Some(Json::Array(_))) => Some("[")
+      _ => None
+    }
+  } else {
+    None
+  }
   let rows : Array[@respo_node.RespoNode[ActionOp, GlobalEvent]] = [
     div(
       style=respo_style(
@@ -524,34 +521,22 @@ fn render_node(
             border_radius=6.0,
           ),
           [
-            // Left column: status chip + key label
+            // Left column: key label only — clean, no chip
             div(
               style=respo_style(
                 display=display_flex,
                 flex_direction=direction_row,
                 align_items=align_center,
-                gap=px(6),
-                width=pct(36),
+                width=pct(33),
               ),
               [
-                if has_exact_change || status == Added || status == Removed {
-                  span(style=chip_style, [text_node(chip_text)])
-                } else {
-                  div([])
-                },
-                div(
+                span(
                   style=respo_style(
                     font_family="Menlo, Monaco, monospace",
                     font_size=12,
-                    font_weight=if has_exact_change ||
-                      status == Added ||
-                      status == Removed {
-                      "600"
-                    } else {
-                      "400"
-                    },
+                    font_weight=if is_muted_container { "400" } else { "500" },
                     color=if is_muted_container {
-                      color(0, 0, 58)
+                      color(0, 0, 60)
                     } else {
                       color(0, 0, 14)
                     },
@@ -560,18 +545,39 @@ fn render_node(
                 ),
               ],
             ),
-            // Right column: value display (leaves only; containers show nothing)
+            // Right column: [chip] [value or bracket]
             div(
               style=respo_style(
                 display=display_flex,
                 flex_direction=direction_row,
                 align_items=align_center,
                 gap=px(8),
-                width=pct(62),
+                width=pct(65),
               ),
               [
-                if can_expand {
+                if has_exact_change || status == Added || status == Removed {
+                  span(style=chip_style, [text_node(chip_text)])
+                } else {
                   div([])
+                },
+                if can_expand {
+                  match bracket_char {
+                    Some(ch) =>
+                      span(
+                        style=respo_style(
+                          font_family="Menlo, Monaco, monospace",
+                          font_size=14,
+                          font_weight="300",
+                          color=if is_muted_container {
+                            color(0, 0, 68)
+                          } else {
+                            color(0, 0, 32)
+                          },
+                        ),
+                        [text_node(ch)],
+                      )
+                    None => div([])
+                  }
                 } else {
                   render_value_summary(status, left, right)
                 },
