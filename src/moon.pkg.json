@@ -6,8 +6,8 @@
       "alias": "json"
     },
     {
-      "path": "moonbitlang/core/debug",
-      "alias": "debug"
+      "path": "tiye/recollect",
+      "alias": "recollect"
     },
     {
       "path": "tiye/respo",
