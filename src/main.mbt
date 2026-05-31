@@ -311,48 +311,52 @@ fn path_status(
 }
 
 ///|
+// Tag-style chip used on container rows only (not leaf nodes)
 fn status_chip(status : DiffStatus) -> (String, RespoStyle) {
   match status {
     Added =>
       (
-        "added",
+        "+ added",
         respo_style(
-          color=color(120, 55, 28),
-          background_color=color(120, 60, 92),
-          padding_left=px(8),
-          padding_right=px(8),
-          padding_top=px(2),
-          padding_bottom=px(2),
-          border_radius=999.0,
-          font_size=12,
+          color=color(208, 80, 20),
+          background_color=color(208, 70, 90),
+          padding_left=px(6),
+          padding_right=px(6),
+          padding_top=px(1),
+          padding_bottom=px(1),
+          border_radius=4.0,
+          font_size=10,
+          font_weight="600",
         ),
       )
     Removed =>
       (
-        "removed",
+        "− removed",
         respo_style(
-          color=color(2, 70, 35),
-          background_color=color(4, 80, 93),
-          padding_left=px(8),
-          padding_right=px(8),
-          padding_top=px(2),
-          padding_bottom=px(2),
-          border_radius=999.0,
-          font_size=12,
+          color=color(355, 72, 30),
+          background_color=color(355, 70, 92),
+          padding_left=px(6),
+          padding_right=px(6),
+          padding_top=px(1),
+          padding_bottom=px(1),
+          border_radius=4.0,
+          font_size=10,
+          font_weight="600",
         ),
       )
     Changed =>
       (
-        "changed",
+        "~ changed",
         respo_style(
-          color=color(30, 80, 28),
-          background_color=color(42, 90, 90),
-          padding_left=px(8),
-          padding_right=px(8),
-          padding_top=px(2),
-          padding_bottom=px(2),
-          border_radius=999.0,
-          font_size=12,
+          color=color(32, 82, 24),
+          background_color=color(40, 88, 90),
+          padding_left=px(6),
+          padding_right=px(6),
+          padding_top=px(1),
+          padding_bottom=px(1),
+          border_radius=4.0,
+          font_size=10,
+          font_weight="600",
         ),
       )
     Unchanged =>
@@ -361,12 +365,12 @@ fn status_chip(status : DiffStatus) -> (String, RespoStyle) {
         respo_style(
           color=color(210, 10, 40),
           background_color=color(210, 16, 93),
-          padding_left=px(8),
-          padding_right=px(8),
-          padding_top=px(2),
-          padding_bottom=px(2),
-          border_radius=999.0,
-          font_size=12,
+          padding_left=px(6),
+          padding_right=px(6),
+          padding_top=px(1),
+          padding_bottom=px(1),
+          border_radius=4.0,
+          font_size=10,
         ),
       )
   }
@@ -427,10 +431,13 @@ fn render_value_summary(
         ),
         [text_node(compact_json(right))],
       )
+    // Added: light blue box, no chip label
     Added =>
-      inline_value_box(compact_json(right), color(130, 62, 88), color(130, 65, 18))
+      inline_value_box(compact_json(right), color(208, 80, 92), color(208, 82, 20))
+    // Removed: ghost — box visible but text fades into background
     Removed =>
-      inline_value_box(compact_json(left), color(355, 88, 90), color(355, 82, 22))
+      inline_value_box(compact_json(left), color(0, 0, 96), color(0, 0, 78))
+    // Changed: old (red) → new (blue), no chip label needed
     Changed =>
       div(
         style=respo_style(
@@ -445,7 +452,7 @@ fn render_value_summary(
             style=respo_style(font_size=12, font_weight="600", color=color(0, 0, 52)),
             [text_node("→")],
           ),
-          inline_value_box(compact_json(right), color(130, 62, 88), color(130, 65, 18)),
+          inline_value_box(compact_json(right), color(208, 80, 92), color(208, 82, 20)),
         ],
       )
   }
@@ -459,6 +466,7 @@ fn render_node(
   right : Json?,
   analysis : Analysis,
   depth : Float,
+  is_index~ : Bool = false,
 ) -> @respo_node.RespoNode[ActionOp, GlobalEvent] {
   let status = path_status(path, left, right, analysis.changed_paths)
   let has_exact_change = contains_exact_path(analysis.changed_paths, path)
@@ -521,7 +529,7 @@ fn render_node(
             border_radius=6.0,
           ),
           [
-            // Left column: key label only — clean, no chip
+            // Left column: key label (array-index gets a distinct badge)
             div(
               style=respo_style(
                 display=display_flex,
@@ -530,22 +538,42 @@ fn render_node(
                 width=pct(33),
               ),
               [
-                span(
-                  style=respo_style(
-                    font_family="Menlo, Monaco, monospace",
-                    font_size=12,
-                    font_weight=if is_muted_container { "400" } else { "500" },
-                    color=if is_muted_container {
-                      color(0, 0, 60)
-                    } else {
-                      color(0, 0, 14)
-                    },
-                  ),
-                  [text_node(label)],
-                ),
+                if is_index {
+                  // Positional index badge — visually distinct from real keys
+                  span(
+                    style=respo_style(
+                      font_family="Menlo, Monaco, monospace",
+                      font_size=10,
+                      font_weight="500",
+                      color=color(260, 28, 36),
+                      background_color=color(260, 26, 94),
+                      padding_left=px(5),
+                      padding_right=px(5),
+                      padding_top=px(1),
+                      padding_bottom=px(1),
+                      border_radius=4.0,
+                    ),
+                    [text_node(label)],
+                  )
+                } else {
+                  span(
+                    style=respo_style(
+                      font_family="Menlo, Monaco, monospace",
+                      font_size=12,
+                      font_weight=if is_muted_container { "400" } else { "500" },
+                      color=if is_muted_container {
+                        color(0, 0, 60)
+                      } else {
+                        color(0, 0, 14)
+                      },
+                    ),
+                    [text_node(label)],
+                  )
+                },
               ],
             ),
-            // Right column: [chip] [value or bracket]
+            // Right column: [container-chip] [bracket or leaf-value]
+            // Chip shown only on container rows; leaf rows rely on colored value boxes
             div(
               style=respo_style(
                 display=display_flex,
@@ -555,7 +583,8 @@ fn render_node(
                 width=pct(65),
               ),
               [
-                if has_exact_change || status == Added || status == Removed {
+                if can_expand &&
+                  (has_exact_change || status == Added || status == Removed) {
                   span(style=chip_style, [text_node(chip_text)])
                 } else {
                   div([])
@@ -643,11 +672,12 @@ fn render_node(
           rows.push(
             render_node(
               next_path,
-              "[\{idx}]",
+              "\{idx}",
               left_items.get(idx),
               right_items.get(idx),
               analysis,
               depth + 1.0,
+              is_index=true,
             ),
           )
         }
@@ -658,11 +688,12 @@ fn render_node(
           rows.push(
             render_node(
               next_path,
-              "[\{idx}]",
+              "\{idx}",
               left_items.get(idx),
               None,
               analysis,
               depth + 1.0,
+              is_index=true,
             ),
           )
         }
@@ -672,11 +703,12 @@ fn render_node(
           rows.push(
             render_node(
               next_path,
-              "[\{idx}]",
+              "\{idx}",
               None,
               right_items.get(idx),
               analysis,
               depth + 1.0,
+              is_index=true,
             ),
           )
         }
