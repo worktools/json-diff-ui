@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "deps": {
     "tiye/respo": "0.3.0",
+    "tiye/cirru-parser": "0.3.0",
     "tiye/dom-ffi": "0.2.3",
     "tiye/respo_css": "0.1.4",
     "tiye/recollect": "0.2.1"
